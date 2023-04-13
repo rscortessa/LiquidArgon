@@ -1,5 +1,3 @@
-
-
 MODULE dynamical
   USE class_particle
   USE stat
@@ -19,21 +17,21 @@ CONTAINS
     
   END FUNCTION mimg
   
-  FUNCTION Vij(aux)
-    REAL, DIMENSION(3) :: Vij,aux
+  FUNCTION aij(aux)
+    REAL, DIMENSION(3) :: aij,aux
     REAL :: norm,min
     norm=NORM2(aux)
-    min=1.42/3.4
+!    min=1.42/3.4
     IF(norm <= 2.25) THEN
-       IF(norm<min) THEN
-          norm=min
-       ENDIF
-       Vij=24.0*(2.0/norm**14-1/norm**8)*aux
+!       IF(norm<min) THEN
+!          norm=min
+!       ENDIF
+       aij=24.0*(2.0/norm**14-1/norm**8)*aux
     ELSE
-       Vij=0
+       aij=0
     ENDIF
 
-  END FUNCTION Vij
+  END FUNCTION aij
 
   FUNCTION ke(ps)
     CLASS(PARTICLE), DIMENSION(:), INTENT(INOUT) :: ps
@@ -53,7 +51,7 @@ CONTAINS
     REAL :: pe,norm,L,min
     REAL, DIMENSION(3) :: aux
     m=size(ps)
-    min=1.42/3.4
+!    min=1.42/3.4
     pe=0
     DO i=1,m
        DO j=i+1,m
@@ -72,7 +70,6 @@ CONTAINS
   
   SUBROUTINE  dynamics(ps,L)
 
-    REAL :: norm
     REAL, INTENT(IN) :: L
     CLASS(PARTICLE) , DIMENSION(:), INTENT(INOUT) :: ps
     REAL,DIMENSION(3) :: aux
@@ -80,6 +77,7 @@ CONTAINS
 
     m=size(ps)
     aux=0
+    
     DO i=1,m
        CALL ps(i)%seta(aux)
     END DO
@@ -88,9 +86,8 @@ CONTAINS
        DO j=i+1,m
           aux=ps(i)%x-ps(j)%x
           aux=mimg(L,aux)
-          norm=NORM2(aux)
-          ps(i)%a=ps(i)%a+Vij(aux)
-          ps(j)%a=ps(j)%a-Vij(aux)
+          ps(i)%a=ps(i)%a+aij(aux)
+          ps(j)%a=ps(j)%a-aij(aux)
        END DO
     END DO
     

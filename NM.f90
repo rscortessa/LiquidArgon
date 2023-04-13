@@ -31,7 +31,7 @@ PROGRAM main
   CALL dynamics(cluster,L)
   DO i=0,max
      CALL printing(cluster,u,i*du,L)
-     CALL verlet(dt,cluster,L)
+     CALL verlet(du,cluster,L)
      CALL thermalize(cluster,vo,dv)
   END DO
   CLOSE(u)
