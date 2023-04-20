@@ -19,13 +19,9 @@ CONTAINS
   
   FUNCTION aij(aux)
     REAL, DIMENSION(3) :: aij,aux
-    REAL :: norm,min
+    REAL :: norm
     norm=NORM2(aux)
-!    min=1.42/3.4
     IF(norm <= 2.25) THEN
-!       IF(norm<min) THEN
-!          norm=min
-!       ENDIF
        aij=24.0*(2.0/norm**14-1/norm**8)*aux
     ELSE
        aij=0
@@ -45,27 +41,39 @@ CONTAINS
     ke=0.5*ke
   END FUNCTION ke
 
-   FUNCTION pe(ps,L)
+   FUNCTION pe(ps,L,v)
     CLASS(PARTICLE), DIMENSION(:), INTENT(INOUT) :: ps
     INTEGER :: m,i,j
-    REAL :: pe,norm,L,min
+    REAL :: pe,norm,L 
     REAL, DIMENSION(3) :: aux
+    INTEGER, INTENT(IN) :: v
     m=size(ps)
-!    min=1.42/3.4
     pe=0
-    DO i=1,m
-       DO j=i+1,m
-          aux=ps(i)%x-ps(j)%x
-          aux=mimg(L,aux)
-          norm=NORM2(aux)
-          IF (norm<2.25) THEN
-!             IF(norm<min) THEN
-!                norm=min
-!             ENDIF
-             pe=pe+4.0/norm**12-4.0/norm**6
-          ENDIF
+    IF (v/= 0) THEN
+       DO i=1,m
+          DO j=i+1,m
+             aux=ps(i)%x-ps(j)%x
+             aux=mimg(L,aux)
+             norm=NORM2(aux)
+             WRITE(v,*) norm
+             IF (norm<2.25) THEN
+                pe=pe+4.0/norm**12-4.0/norm**6
+             ENDIF
+          END DO
        END DO
-    END DO
+       
+    ELSE
+       DO i=1,m
+          DO j=i+1,m
+             aux=ps(i)%x-ps(j)%x
+             aux=mimg(L,aux)
+             norm=NORM2(aux)
+             IF (norm<2.25) THEN
+                pe=pe+4.0/norm**12-4.0/norm**6
+             ENDIF
+          END DO
+       END DO
+    ENDIF
   END FUNCTION pe
   
   SUBROUTINE  dynamics(ps,L)
@@ -147,7 +155,7 @@ CONTAINS
     m=size(ps)
     ALLOCATE(aux(m,3),aux2(m,3))
     CALL uniform(aux2,L,q,r,s)
-    CALL gaussian(aux,1,vo)
+    CALL gaussian(aux,vo)
     DO i=1,m
        CALL ps(i)%setx(aux2(i,:),L)
        CALL ps(i)%setv(aux(i,:))
@@ -159,7 +167,7 @@ CONTAINS
     REAL, INTENT(IN) :: sigma,ds
     CLASS(PARTICLE), DIMENSION(:) :: ps  
     REAL :: sum
-    INTEGER :: m,i,n
+    INTEGER :: m,i
     
     m=size(ps)
     sum=2.0*ke(ps)
@@ -174,13 +182,13 @@ CONTAINS
   END SUBROUTINE thermalize
 
   
-  SUBROUTINE printing(ps,u,dt,L)
-    INTEGER , INTENT(IN):: u
+  SUBROUTINE printing(ps,u,dt,L,v)
+    INTEGER , INTENT(IN):: u,v
     INTEGER :: m,i
     REAL, INTENT(IN) :: dt,L
     CLASS(PARTICLE), DIMENSION(:) :: ps
     m=size(ps)
-    WRITE(u,*) dt,ke(ps),pe(ps,L) 
+    WRITE(u,*) dt,ke(ps),pe(ps,L,v) 
     DO i=1,m
        CALL ps(i)%state(u)
     END DO

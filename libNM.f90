@@ -40,7 +40,7 @@ CONTAINS
   SUBROUTINE state(p,u)
     CLASS(PARTICLE) :: p
     INTEGER :: u
-    WRITE(u,*) p%x(:),p%v(:),NORM2(p%v(:))**2
+    WRITE(u,*) p%x(:),p%v(:),NORM2(p%x(:))**2,NORM2(p%v(:))**2
   END SUBROUTINE state
 
 END MODULE class_particle

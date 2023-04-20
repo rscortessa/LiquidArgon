@@ -4,8 +4,25 @@ import math
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
 from sklearn.linear_model import LinearRegression
 
+# Arguments received by console
+
+A=[int(i) for i in sys.argv[1:]]
+N,Nwarmup,T,L=A
+
+# Constants
+k=1.380649
+sigma=3.4 
+Emm=120.0 
+mass=39.95*1.6747
+invdu=sigma*(mass/Emm)**(1/2)
+dx=0.01
+lines=1001
+stepdecay=150
+dv=(k*Emm/mass)**(1/2)
+deltat=0.01
 # KeeperP collects the data of a file.
 
 # Before using the function it is required to have created a list containing the lines of the file
@@ -35,11 +52,12 @@ def keeperP(dt,start,amount,step,mini,maxi):
 # The Diaconis rule is taking into account to generate the histogram
 
 def MaxwellBoltzmann(frame,dt,lines):
-    B=keeperP(dt,frame*lines+1,lines-1,1,7,8)
+
+    B=keeperP(dt,frame*lines+1,lines,1,7,8)
     B=np.array(B[:,0])
     C=np.sort(B)
     C=np.array(C)
-    print(C)
+
     #Diaconis rule
     
     IQR=C[int(3/4*(len(C)-1))]-C[int((len(C)-1)/4)]
@@ -62,10 +80,11 @@ def MaxwellBoltzmann(frame,dt,lines):
 
     t=av*120/3.0
     print("Mean velocity:",av, "Temperature",t," K")
-    plt.title("Maxwell Boltzmann Distribution"+" $V(T / \epsilon)$")
-    plt.ylabel("P(r)")
-    plt.xlabel("$r(A^o)$")
-    plt.stairs(counts,bins,label="Average velocity="+str(np.round(av,2))+"$\pm$"+str(np.round(var,2)))
+    plt.figure()
+    plt.title("Maxwell Boltzmann Distribution"+" $V [(\epsilon / M)^{1/2}]$ \n "+"$L="+str(L/10.0)+"\sigma \; T="+str(T/10.0)+"K\; N_{warmup}="+str(Nwarmup)+"$")
+    plt.ylabel("$P(|V|)$")
+    plt.xlabel("$V [(\epsilon / M)^{1/2}]$")
+    plt.stairs(counts,bins,label="Average velocity="+str(np.round(av,2))+"$\pm$"+str(np.round(var,3)))
     plt.legend()
     plt.savefig("MB.png")
 
@@ -77,9 +96,9 @@ def MaxwellBoltzmann(frame,dt,lines):
 # du is the normalization of the time
 
     
-def Energy(frames,dt,lines,du):
-    D=["K.E","P.E"]
-    B=keeperP(dt,0,frames*lines,lines,0,3)
+def Energy(frames,dt,lines,du,i,step):
+    D=["Kinetic Energy","Potential Energy"]
+    B=keeperP(dt,0,frames*step,step,0,3)
     B[:,0]=B[:,0]*du
 
     # if KoP is 0, the kinetic energy is plotted, in the other hand with KoP=1 is the potential energy  
@@ -87,7 +106,7 @@ def Energy(frames,dt,lines,du):
         
         C=B[:,KoP+1]
         plt.figure()
-        plt.title(D[KoP]+" $(\epsilon)$")
+        plt.title(D[KoP]+"$[\epsilon]$ \n "+"$L="+str(L/10.0)+"\sigma \; T="+str(T/10.0)+"K\; N_{warmup}="+str(Nwarmup)+"$")
         plt.ylabel("$Energy(\;\epsilon)$")
         plt.xlabel("$t(10^{-14}s)$")
         
@@ -95,7 +114,8 @@ def Energy(frames,dt,lines,du):
             plt.yscale("log")
         plt.plot(B[:,0],C,label=D[KoP])
         plt.legend()
-        plt.savefig(D[KoP]+".png")
+        plt.tight_layout()
+        plt.savefig(i+D[KoP]+".png")
 
 #PCF1 evaluates the pair correlation function.
 # dx is the width of the discretization of the space (Used to compute the density of particles n(r))
@@ -109,9 +129,9 @@ def PCF1(dx,L,Nu,dt,lines,frames):
 
     #Initialize the variables
     #Store the data of the relative positions in A 
-
+    L=L/(10.0)
     mini=0
-    maxi=L/2.0
+    maxi=L/2
     N=int((maxi-mini)/dx)
     A=np.array(keeperP(dt,0,frames*lines,1,0,1))
     iteration=range(frames)
@@ -134,7 +154,7 @@ def PCF1(dx,L,Nu,dt,lines,frames):
     # The data is plotted
 
     plt.figure()
-    plt.title("$Pair\; Correlation\; Function$ "+" $G(r)$")
+    plt.title("$Pair\; Correlation\; Function$ "+" $G(r)$ \n "+"$L="+str(L)+"\sigma \; T="+str(T/10.0)+"K\; N_{warmup}="+str(Nwarmup)+"$")
     plt.ylabel("$G(r)$")
     plt.xlabel("$r/ \sigma$")
     plt.errorbar(bins,RDF,yerr=error,xerr=dx,fmt=".k",ecolor="blue",label="$G(r)$",ms=1)
@@ -142,27 +162,73 @@ def PCF1(dx,L,Nu,dt,lines,frames):
     plt.legend()
     plt.savefig("PCF.pdf")
 
-# It is calculated correlation functions for the position and velocity:
-
-def RandomWalk(frame,dt,lines,N,rep,stabilization=0):
+# It is calculated the autocorrelation of the velocity:
+# frame is the number 
+def AutocorrelationV(frame,dt,lines,rep,timespace,stabilization=0):
+    
     D=range(0,frame-stabilization)
     A=range(N)
     t=[i for i in D]
     B=[[] for i in A]
-    titles=["$  r^2(t)   \; Mean\; Squared \; Displacement$","$ V(0)\cdot V(t) $"]
+    difussion=[0,0]
+    titles="Velocity Autocorrelation $ < V(0)\cdot V(t) > $\n "+"$L="+str(L/10.0)+"\sigma \; T="+str(T/10.0)+"K\; N_{warmup}="+str(Nwarmup)+"$"
+      
+    ylabels="$Velocity\; Autocorrelation \; [V(0)^2]$"
+    save="AutocorrelationV.pdf"
+    ra2=[[] for h in range(rep)]
+
+    for h in range(rep):
+        C=keeperP(dt,(stabilization+h*timespace)*lines+1,lines*(frame-stabilization),lines,3,6)            
+        for i in A:
+            #E=[ np.dot(np.array(C[i,0:3]),np.array(C[0,0:3]))/(np.dot(np.array(C[0,0:3]),np.array(C[0,0:3]))) for i in D]
+            E=[ np.dot(np.array(C[i,0:3]),np.array(C[0,0:3])) for i in D]
+            B[i]=E
+            
+        B=np.array(B)
+        ra2[h]=[np.mean(B[:,k]) for k in D]
+        print(h,"yes")
+
+    ra2=np.array(ra2)    
+    r2=[np.mean(ra2[:,k])/(np.mean(ra2[:,0])) for k in D]
+    error=[np.sqrt(np.var(ra2[:,k])/(rep-1))/np.mean(ra2[:,0]) for k in D]
+    
+    for x in range(len(r2)):
+        difussion[0]=difussion[0]+r2[x]
+        difussion[1]=difussion[1]+error[x]
+
+    difussion[0]=difussion[0]/3*(dv)**2*(deltat)*(T/Emm) #10^{-8}m^2s^{-1} --> 10^{-4}cm^2s^{-1} 
+    difussion[1]=difussion[1]/3*(dv)**2*(deltat)*(T/Emm)
+    
+    plt.figure()
+    plt.title(titles)
+    plt.ylabel(ylabels)
+    plt.text(25,0.8,"$D_0=$"+str(round(difussion[0],3))+"$\pm$"+str(round(difussion[1],3))+" $[10^{-4}cm^2s^{-1}]$")
+    plt.xlabel("$ t(10^{-14}s)$")
+    plt.errorbar(t,r2,yerr=error,fmt=".k",ecolor="blue",label=ylabels)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(save)
+
+
+def AutocorrelationVA(frame,dt,lines,N,rep,timespace,stabilization=0):
+    D=range(0,frame-stabilization)
+    A=range(N)
+    t=[i for i in D]
+    B=[[] for i in A]
+    titles=["$  r^2(t)   \; Mean\; Squared \; Displacement$","$ < V(0)\cdot V(t) > $"]
     ylabels=["$ (r/ \sigma)^2$","$Velocity\; Autocorrelation$"]
     save=["R2.pdf","AutocorrelationV.pdf"]
     for j in range(2):
         ra2=[[] for h in range(rep)]
         for h in range(rep):
-            C=keeperP(dt,stabilization*frame+1+h*lines*(frame-stabilization),lines*(frame-stabilization),lines,0+j*3,3+j*3)
+            C=keeperP(dt,stabilization*frame+1+h*timespace,lines*(frame-stabilization),lines,0+j*3,3+j*3)
             if j==0:
                 for i in A:     
                     E=[(C[i,0]-C[0,0])**2+(C[i,1]-C[0,1])**2+(C[i,2]-C[0,2])**2 for i in D]
                     B[i]=E
             else:
                 for i in A:     
-
+                    
                     E=[ np.dot(np.array(C[i,0:3]),np.array(C[0,0:3]))/(np.dot(np.array(C[0,0:3]),np.array(C[0,0:3]))) for i in D]
                     B[i]=E
                 
@@ -194,37 +260,27 @@ def RandomWalk(frame,dt,lines,N,rep,stabilization=0):
         plt.savefig(save[j])
 
 
+        
 
-
-sigma=3.4 
-Emm=120.0 
-mass=39.95*1.6747
-invdu=sigma*(mass/Emm)**(1/2)
-N=1000
-# NUMBER OF OXYGENS ATOM PER FRAME
-L=10.229
-dx=0.01
-name="HISTORY1.txt"
+name="WARMUPCHECK-N"+str(N)+"Nw"+str(Nwarmup)+"T"+str(T)+"L"+str(L)+".txt"
 data=open(name,"r")
 dt=data.read().split("\n")
-frame=2100
-lines=1001
-MaxwellBoltzmann(frame,dt,lines)
-Energy(frame,dt,lines,invdu)
-RandomWalk(350,dt,lines,N,36,300)
-# FRAME WHICH IS IN EQUILIBRIUM
 
-#frame=300 # 80/0.005*100
+Energy(Nwarmup,dt,lines,invdu,"W",1)
 
-#NUMBER OF LINES FOR EACH FRAME
-
-#lines=1001
-#READ DATA
-#KEEP THE INFORMATION FROM THIS FRAME
-
-name="DB1.txt"
+name="HISTORY-N"+str(N)+"Nw"+str(Nwarmup)+"T"+str(T)+"L"+str(L)+".txt"
 data=open(name,"r")
 dt=data.read().split("\n")
-lines=N/2*(N-1)
-frame=10
-#PCF1(dx,L,N,dt,lines,frame)
+
+MaxwellBoltzmann(0,dt,lines-1)
+AutocorrelationV(stepdecay,dt,lines,N,stepdecay,0)
+Energy(N*stepdecay,dt,lines,invdu,"M",lines)
+
+name="RPOSITIONS-N"+str(N)+"Nw"+str(Nwarmup)+"T"+str(T)+"L"+str(L)+".txt"
+data=open(name,"r")
+dt=data.read().split("\n")
+Npart=1000
+lines=int(Npart/2*(Npart-1))
+if(N>10):
+    N=10
+PCF1(dx,L,Npart,dt,lines,N)
