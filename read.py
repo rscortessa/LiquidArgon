@@ -20,7 +20,7 @@ mass=39.95*1.6747
 invdu=sigma*(mass/Emm)**(1/2)
 dx=0.01
 lines=1001
-stepdecay=150
+stepdecay=50
 dv=(k*Emm/mass)**(1/2)
 deltat=0.01
 # KeeperP collects the data of a file.
@@ -85,6 +85,7 @@ def MaxwellBoltzmann(frame,dt,lines):
     plt.ylabel("$P(|V|)$")
     plt.xlabel("$V [(\epsilon / M)^{1/2}]$")
     plt.stairs(counts,bins,label="Average velocity="+str(np.round(av,2))+"$\pm$"+str(np.round(var,3)))
+    #plt.plot(x,y,label="Maxwell Boltzmann "+str(T/10.0))
     plt.legend()
     plt.savefig("MB.png")
 
@@ -108,7 +109,7 @@ def Energy(frames,dt,lines,du,i,step):
         plt.figure()
         plt.title(D[KoP]+"$[\epsilon]$ \n "+"$L="+str(L/10.0)+"\sigma \; T="+str(T/10.0)+"K\; N_{warmup}="+str(Nwarmup)+"$")
         plt.ylabel("$Energy(\;\epsilon)$")
-        plt.xlabel("$t(10^{-14}s)$")
+        plt.xlabel("$t(10^{-12}s)$")
         
         if(KoP==0):
             plt.yscale("log")
@@ -164,6 +165,7 @@ def PCF1(dx,L,Nu,dt,lines,frames):
 
 # It is calculated the autocorrelation of the velocity:
 # frame is the number 
+
 def AutocorrelationV(frame,dt,lines,rep,timespace,stabilization=0):
     
     D=range(0,frame-stabilization)
@@ -186,7 +188,6 @@ def AutocorrelationV(frame,dt,lines,rep,timespace,stabilization=0):
             
         B=np.array(B)
         ra2[h]=[np.mean(B[:,k]) for k in D]
-        print(h,"yes")
 
     ra2=np.array(ra2)    
     r2=[np.mean(ra2[:,k])/(np.mean(ra2[:,0])) for k in D]
@@ -198,69 +199,19 @@ def AutocorrelationV(frame,dt,lines,rep,timespace,stabilization=0):
 
     difussion[0]=difussion[0]/3*(dv)**2*(deltat)*(T/Emm) #10^{-8}m^2s^{-1} --> 10^{-4}cm^2s^{-1} 
     difussion[1]=difussion[1]/3*(dv)**2*(deltat)*(T/Emm)
+    print("The difussion coefficient is:",difussion[0],"$\pm$",difussion[1])
     
     plt.figure()
     plt.title(titles)
     plt.ylabel(ylabels)
-    plt.text(25,0.8,"$D_0=$"+str(round(difussion[0],3))+"$\pm$"+str(round(difussion[1],3))+" $[10^{-4}cm^2s^{-1}]$")
-    plt.xlabel("$ t(10^{-14}s)$")
+    #plt.text(25,0.8,"$D_0=$"+str(round(difussion[0],3))+"$\pm$"+str(round(difussion[1],3))+" $[10^{-4}cm^2s^{-1}]$")
+    plt.xlabel("$ t(10^{-12}s)$")
     plt.errorbar(t,r2,yerr=error,fmt=".k",ecolor="blue",label=ylabels)
     plt.legend()
     plt.tight_layout()
     plt.savefig(save)
 
 
-def AutocorrelationVA(frame,dt,lines,N,rep,timespace,stabilization=0):
-    D=range(0,frame-stabilization)
-    A=range(N)
-    t=[i for i in D]
-    B=[[] for i in A]
-    titles=["$  r^2(t)   \; Mean\; Squared \; Displacement$","$ < V(0)\cdot V(t) > $"]
-    ylabels=["$ (r/ \sigma)^2$","$Velocity\; Autocorrelation$"]
-    save=["R2.pdf","AutocorrelationV.pdf"]
-    for j in range(2):
-        ra2=[[] for h in range(rep)]
-        for h in range(rep):
-            C=keeperP(dt,stabilization*frame+1+h*timespace,lines*(frame-stabilization),lines,0+j*3,3+j*3)
-            if j==0:
-                for i in A:     
-                    E=[(C[i,0]-C[0,0])**2+(C[i,1]-C[0,1])**2+(C[i,2]-C[0,2])**2 for i in D]
-                    B[i]=E
-            else:
-                for i in A:     
-                    
-                    E=[ np.dot(np.array(C[i,0:3]),np.array(C[0,0:3]))/(np.dot(np.array(C[0,0:3]),np.array(C[0,0:3]))) for i in D]
-                    B[i]=E
-                
-            B=np.array(B)
-            ra2[h]=[np.mean(B[:,k]) for k in D]
-            
-        ra2=np.array(ra2)    
-        r2=[np.mean(ra2[:,k]) for k in D]
-        error=[np.sqrt(np.var(ra2[:,k])/(rep-1)) for k in D]
-        
-        if j==0:
-            x=np.array(t).reshape((-1,1))
-            model= LinearRegression().fit(x,r2)
-            r_sq=model.score(x,r2)
-            b=model.intercept_
-            a=model.coef_
-            y=a*x+b
-        
-        print(error)
-        plt.figure()
-        plt.title(titles[j])
-        plt.ylabel(ylabels[j])
-        plt.xlabel("$ t(10^{-14}s)$")
-        if j==0:
-            plt.plot(x,y,label="Linear regression m="+str(a/6.0*3.4**2),)
-        plt.errorbar(t,r2,yerr=error,fmt=".k",ecolor="blue",label=ylabels[j],ms=1)
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(save[j])
-
-
-        
 
 name="WARMUPCHECK-N"+str(N)+"Nw"+str(Nwarmup)+"T"+str(T)+"L"+str(L)+".txt"
 data=open(name,"r")
@@ -273,7 +224,7 @@ data=open(name,"r")
 dt=data.read().split("\n")
 
 MaxwellBoltzmann(0,dt,lines-1)
-AutocorrelationV(stepdecay,dt,lines,N,stepdecay,0)
+AutocorrelationV(150,dt,lines,N,stepdecay,0)
 Energy(N*stepdecay,dt,lines,invdu,"M",lines)
 
 name="RPOSITIONS-N"+str(N)+"Nw"+str(Nwarmup)+"T"+str(T)+"L"+str(L)+".txt"

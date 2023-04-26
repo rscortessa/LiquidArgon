@@ -42,7 +42,7 @@ PROGRAM main
    vo=(T/Emm)**(0.5) !Initial adimensional velocity
    dv=dte/Emm ! Variation of velocity allowed
    m=1000 ! Number of particles
-   stepdecay=150 !Decay step of time were the correlations are negligible
+   stepdecay=50 !Decay step of time were the correlations are negligible
   
   seed=20 !The seed for the random numbers is set
  
@@ -83,7 +83,7 @@ PROGRAM main
      OPEN(UNIT=v,IOSTAT=ios3, FILE=name3,STATUS='replace',ACTION='write')
 
      auxi2=0
-     DO i=1,N*stepdecay
+     DO i=1,N*stepdecay+100
 
         !CHECK if it is neccesary to print the difference in the positions for the pair correlation function
         
